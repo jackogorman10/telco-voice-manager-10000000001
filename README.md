@@ -1,5 +1,13 @@
 # Telco Voice Manager Documentation
 
+## HAL contract documentation
+
+Use the [HAL developer specification](docs/pages/halSpec.md) and
+[detailed JSON HAL reference](docs/pages/halSpecDetailed.md) for the checked-in
+v1/v2 wire contracts, fields, supported parameter lists, and known schema defects.
+The broader manager architecture below is not a normative HAL contract or evidence
+that a vendor implements every described feature.
+
 Telco Voice Manager is the RDK-B middleware component that provides voice service management capabilities for residential and business environments. This component serves as the central orchestrator for voice services, implementing TR-104 (Voice over Internet Protocol) standards and managing the interaction between the RDK-B middleware stack and vendor-specific voice implementations. The component enables service providers to offer advanced telephony features including SIP-based VoIP calling, POTS (Plain Old Telephone Service) support, and voice service provisioning through a standardized TR-181 data model interface.
 
 Telco Voice Manager acts as a bridge between the high-level RDK-B management infrastructure and low-level voice hardware abstraction layers , providing seamless integration of voice services into the broader RDK-B ecosystem. It supports both legacy telephony interfaces and modern IP-based voice communications, enabling operators to deploy unified voice solutions across diverse hardware platforms while maintaining consistent management and configuration interfaces.
@@ -13,7 +21,7 @@ graph LR
 
     subgraph "RDK-B Platform"
         subgraph "Remote Management Agents"
-            ProtocolAgents["Protocol Agents<br>( TR-069, WebPA, USP etc.)"]
+            ProtocolAgents["Protocol Agents (TR-069, WebPA, USP etc.)"]
         end
 
         rdkbComponents["Other RDK-B Components(PSM,P&M etc.)"]
@@ -190,25 +198,47 @@ sequenceDiagram
     participant NetworkMonitor
 
     System->>System: Start [*] → Initializing
-    Note right of System: Initialize logging system<br>Load component configuration<br>Setup memory management<br>Initialize threading model
+    Note right of System: Initialize logging system
+    Note right of System: Load component configuration
+    Note right of System: Set up memory management
+    Note right of System: Initialize threading model
 
     System->>ConfigLoader: Component Start → LoadingConfig
-    Note right of ConfigLoader: Load telcovoice_config_default.json<br>Parse HAL schema configuration<br>Validate voice service parameters<br>Load debug and logging settings
+    Note right of ConfigLoader: Load telcovoice_config_default.json
+    Note right of ConfigLoader: Parse HAL schema configuration
+    Note right of ConfigLoader: Validate voice service parameters
+    Note right of ConfigLoader: Load debug and logging settings
 
     ConfigLoader->>RBusManager: Configuration Validated → RegisteringRBus
-    Note right of RBusManager: Establish RBus connection<br>Register component namespace<br>Setup event publishing capabilities<br>Initialize message bus interface
+    Note right of RBusManager: Establish RBus connection
+    Note right of RBusManager: Register component namespace
+    Note right of RBusManager: Set up event publishing capabilities
+    Note right of RBusManager: Initialize message bus interface
 
     RBusManager->>TR181Handler: RBus Connection Established → RegisteringTR181
-    Note right of TR181Handler: Register Device.Services.VoiceService objects<br>Create TR-181 parameter handlers<br>Setup DML backend managers<br>Initialize parameter validation
+    Note right of TR181Handler: Register Device.Services.VoiceService objects
+    Note right of TR181Handler: Create TR-181 parameter handlers
+    Note right of TR181Handler: Set up DML backend managers
+    Note right of TR181Handler: Initialize parameter validation
 
     TR181Handler->>HALInterface: TR-181 Parameters Registered → ConnectingHAL
-    Note right of HALInterface: Establish JSON HAL connection<br>Load HAL schema validation<br>Subscribe to voice service events<br>Initialize vendor stack communication
+    Note right of HALInterface: Establish JSON HAL connection
+    Note right of HALInterface: Load HAL schema validation
+    Note right of HALInterface: Subscribe to voice service events
+    Note right of HALInterface: Initialize vendor stack communication
 
     HALInterface->>ServiceProvisioner: HAL Interface Connected → ProvisioningServices
-    Note right of ServiceProvisioner: Provision SIP client instances<br>Configure POTS interfaces<br>Setup call control services<br>Initialize voice service instances
+    Note right of ServiceProvisioner: Provision SIP client instances
+    Note right of ServiceProvisioner: Configure POTS interfaces
+    Note right of ServiceProvisioner: Set up call control services
+    Note right of ServiceProvisioner: Initialize voice service instances
 
     ServiceProvisioner->>System: Voice Services Provisioned → Active
-    Note right of System: Process voice calls<br>Handle SIP registrationsbrMonitor service health<br>Publish voice events<br>Respond to TR-181 requests
+    Note right of System: Process voice calls
+    Note right of System: Handle SIP registrations
+    Note right of System: Monitor service health
+    Note right of System: Publish voice events
+    Note right of System: Respond to TR-181 requests
 
     System->>VoiceController: Configuration Update/Event → RuntimeStateChange
     VoiceController->>NetworkMonitor: Process Voice Service Event
@@ -219,13 +249,18 @@ sequenceDiagram
     System->>ErrorHandler: HAL/Network Error → ServiceFailure
     Note right of ErrorHandler: Diagnose Issue
 
-    ErrorHandler->>ErrorHandler: HAL reconnection attempts<br>Service restoration procedures<br>Event notification to subscribers<br>Fallback configuration activation
+    ErrorHandler->>ErrorHandler: HAL reconnection attempts
+    Note right of ErrorHandler: Service restoration procedures
+    Note right of ErrorHandler: Event notification to subscribers
+    Note right of ErrorHandler: Fallback configuration activation
 
     alt Recovery Successful
         ErrorHandler->>System: Recovery Successful → Active
     else Partial Recovery
         ErrorHandler->>System: Partial Recovery → Degraded
-        Note right of System: Limited voice service operation<br>Reduced functionality mode<br>Continuous recovery attempts
+        Note right of System: Limited voice service operation
+        Note right of System: Reduced functionality mode
+        Note right of System: Continuous recovery attempts
         System->>System: Full Service Restored → Active
     end
 
@@ -284,6 +319,7 @@ sequenceDiagram
 sequenceDiagram
     participant Client as TR-181 Client/PandM
     participant TelcoVoice as Telco Voice Manager
+    participant RBus as RBus Message Bus
     participant HAL as Voice HAL
     participant VendorStack as Vendor Voice Stack
     participant SIPServer as SIP Server
@@ -434,6 +470,7 @@ sequenceDiagram
     participant WebUI as Web Management UI
     participant PandM as PandM
     participant TelcoVoice as Telco Voice Manager
+    participant RBusCore as RBus Message Bus
     participant HAL as Voice HAL
     participant VendorStack as Vendor Voice Stack
     participant SIPServer as SIP Server
@@ -487,11 +524,11 @@ The Telco Voice Manager integrates with the Voice Hardware Abstraction Layer thr
 
 | HAL API | Purpose | Parameters | Return Values | Implementation File |
 |---------|---------|------------|---------------|-------------------|
-| `getParameters` | Retrieve voice service configuration and status parameters from vendor voice stack | JSON array of parameter names, schema version, timeout specifications | JSON response with parameter values, types, and status codes | `telcovoicemgr_dml_hal.c` |
-| `setParameters` | Configure voice service parameters including SIP settings, POTS configuration, and call control options | JSON array of parameter name/value/type objects with validation requirements | Success/failure status, validation errors, applied parameter confirmation | `telcovoicemgr_dml_hal.c` |
-| `subscribeEvent` | Subscribe to real-time voice service events including call state changes, registration events, and hardware status | Event topic names, subscription types (onChange, periodic), timeout configurations | Subscription confirmation, event delivery method, error conditions | `telcovoicemgr_controller.c` |
-| `getSchema` | Retrieve HAL schema definition for parameter validation and capability discovery | Schema version request, supported feature queries | JSON schema document, supported parameter list, capability matrix | `telcovoicemgr_dml_hal.c` |
-| `deleteObject` | Remove dynamic voice service objects such as SIP clients or call control lines | Object instance identifiers, deletion scope, dependency validation | Deletion status, affected parameter list, cleanup confirmation | `telcovoicemgr_dml_backendmgr.c` |
+| `getParameters` | Read parameters accepted by the selected v1/v2 schema | Envelope and `params` entries containing `name`; no schema-defined timeout field | `getParametersResponse` entries with `name`, `type`, and `value` | `telcovoicemgr_dml_hal.c` |
+| `setParameters` | Write parameters accepted by the selected schema | Envelope and `params` entries containing `name`, `type`, and `value` | `result` with `Result.Status`; not an applied-value confirmation | `telcovoicemgr_dml_hal.c` |
+| `subscribeEvent` | Subscribe to the schema-listed firewall-rule event | `name` and `notificationType` constrained by the selected schema | See the detailed reference; broad call-state and periodic subscriptions are not established by these schemas | `telcovoicemgr_controller.c` |
+| `getSchema` | Request the schema location | Required envelope; no parameter list defined for this action | `getSchemaResponse` with `SchemaInfo.FilePath`, not an inline capability matrix | `telcovoicemgr_dml_hal.c` |
+| `deleteObject` | Action is enumerated but has no usable object contract | Both schemas contain an invalid empty `anyOf` for this action | No supported deletion workflow can be inferred | See the schema defect notes in the detailed reference |
 
 ### Key Implementation Logic
 
